@@ -8,7 +8,7 @@
 *.blg
 
 #Hide my real name.
-reportauthor.tex
+#reportauthor.tex
 
 #Misc files
 .directory

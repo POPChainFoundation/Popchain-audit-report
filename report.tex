@@ -1,0 +1,141 @@
+%!TEX TS-program = xelatex
+
+\documentclass {article}
+
+\input {commonpackages.tex}
+
+\setmainfont {Noto Serif}
+\setmonofont[Scale=0.8]{Source Code Pro}
+
+\input {lststyles.tex}
+\begin {document}
+
+\title {Popchain mainnet audit report}
+\input {reportauthor.tex}
+\maketitle
+
+\clearpage
+\section{Target of analysis}
+
+\begin{itemize}
+\item Full project except for BerkeleyDB and libboost component
+\end{itemize}
+
+\section{Analysis method}
+
+\begin{itemize}
+\item Full project static analysis using Synopsis® Coverity® Scan
+\item Manual code inspection
+\end{itemize}
+
+\section{Analysis result}
+\subsection{Static analysis using Synopsis® Coverity® Scan - High impact issues}
+\subsubsection{CID 242525 - Pointer to local outside scope (use-after-free)}
+In \texttt{src/main.cpp:AddInvalidSpendsToMap}, reference to 'publicSpend' local variable
+is used after 'publicSpend' is freed from the stack. It can be lead to data
+corruption.
+
+\lstinputlisting [style=customc, firstline=2473, lastline=2501]{Popchain/src/main.cpp}
+
+\subsubsection{CID 242511 - Resource leak}
+In \texttt{src/wallet/wallet.cpp:CWallet::AutoCombineDust}, 'coinControl' is dynamically
+allocated but not freed when coinControl->HasSelected() is false. It may lead to
+a memory leak which can disrupt stability.
+
+\lstinputlisting [style=customc, firstline=3388, lastline=3437]{Popchain/src/wallet/wallet.cpp}
+
+\subsubsection{CID 242479 - Pointer to local outside scope (use-after-free)}
+In \texttt{src/miner.cpp:CreateNewBlock}, reference to 'publicSpoend' and 'spendObj'
+member variable is used after 'publicSpend' and 'spendObj' is freed from the
+stack. It can be lead to data corruption.
+
+\lstinputlisting [style=customc, firstline=101, lastline=392]{Popchain/src/miner.cpp}
+
+\subsubsection{CID 242476 - Resource leak}
+In \texttt{src/wallet/rpcwallet.cpp:serchdzpch}, dzpchThreads is dynamically allocated
+but not freed before control leaves the function. It will cause a memory leak
+which can disrupt stability.
+
+\lstinputlisting [style=customc, firstline=3632, lastline=3680]{Popchain/src/wallet/rpcwallet.cpp}
+
+\subsubsection{CID 242474 - Resource leak}
+In \texttt{src/torcontrol.cpp:ReadBinaryFile}, the file is not properly closed if file
+descriptor encountered an error. It can cause file descriptor leak which can
+lead to system instability.
+
+\lstinputlisting [style=customc, firstline=370, lastline=389]{Popchain/src/torcontrol.cpp}
+
+\subsubsection{CID 242447 - Uninitialized local variable}
+In \texttt{src/spork.cpp:SetPrivKey} uses an uninitialized local variable to test spork
+signer. It may lead to an undesirable result. It is strongly advised to use a
+properly initialized object.
+
+\lstinputlisting [style=customc, firstline=255, lastline=270]{Popchain/src/spork.cpp}
+
+\subsubsection{CID 186065 - Out-of-bounds access}
+In \texttt{src/pubkey.cpp:CPubKey::Derive} incorrectly indexes pubkey array which leads to access
+invalid position(ptr+33 > ptr+32). It may lead into severe data corruption.
+
+\lstinputlisting [style=customc, firstline=231, lastline=251]{Popchain/src/pubkey.cpp}
+
+\subsection{Static analysis using Synopsis® Coverity® Scan - Medium impact issues}
+\subsubsection{CID 242536 - Dereference after null check}
+In \texttt{src/rpc/budget.cpp:preparebudget}, pindexPrev can be null in a special case.
+Though it will not cause a practical problem in production due to its special
+condition requirement, it is good to fix this problem to improve code quality.
+
+\lstinputlisting [style=customc, firstline=52, lastline=110]{Popchain/src/rpc/budget.cpp}
+
+\subsubsection{CID 242518 - Dereference after null check}
+In \texttt{src/zpch/zpchwallet.cpp:CzPCHWallet::SyncWithChain}, in case of
+pindex is null (some special condition is required), it can cause wallet crash.
+
+\lstinputlisting [style=customc, firstline=182, lastline=281]{Popchain/src/zpch/zpchwallet.cpp}
+
+\subsubsection{CID 242507 - Explicit null dereferenced}
+In \texttt{src/zpch/zpchwallet.cpp:CzPCHWallet::SyncWithChain}, in special case
+if \texttt{mapBlockIndex.count(hashBlock)} is zero, \texttt{pindex} will be
+null. In this case, it will lead to wallet crash.
+
+\lstinputlisting [style=customc, firstline=182, lastline=281]{Popchain/src/zpch/zpchwallet.cpp}
+
+\subsubsection{CID 242505 - Explicit null dereferenced}
+In \texttt{src/main.cpp:AcceptBlock}, in special case when handling genesis
+block and zerocoin is active, it will lead into null pointer dereference. In
+this case, it will lead to a wallet crash.
+
+\lstinputlisting [style=customc, firstline=182, lastline=281]{Popchain/src/zpch/zpchwallet.cpp}
+
+\subsubsection{CID 242494 - Dereference after null check}
+In \texttt{src/rpc/budget.cpp:submitbudget}, in speical case when handling
+genesis block, it can lead into null pointer dereference. In this case, it will
+lead to a wallet crash.
+
+\lstinputlisting [style=customc, firstline=147, lastline=237]{Popchain/src/rpc/budget.cpp}
+
+\subsubsection{CID 242485 - Dereference null return value}
+In \texttt{src/rpc/rawtransaction.cpp:signrawtransaction}, when wallet is in
+regression test mode, there is possibility to crash wallet with crafted request.
+This vulnerability will not affect production environment because regression
+test cannot be connected to internet but it is good to fix this problem to
+improve code quality.
+
+\lstinputlisting [style=customc, firstline=630, lastline=780]{Popchain/src/rpc/budget.cpp}
+
+\subsubsection{CID 242477 - Dereference after null check}
+In \texttt{src/main.cpp:ConnectBlock}, in practically impossible case when
+wallet tries to connect genesis block to somewhere, it can lead into null
+pointer dereference. It is not possible to trigger crash using this problem but
+it is good to fix this problem to improve code quality.
+
+\lstinputlisting [style=customc, firstline=3287, lastline=3332]{Popchain/src/main.cpp}
+
+\subsubsection{CID 16467 - Improper use of negative value}
+In \texttt{src/allocators.cpp:GetSystemPageSize}, if there is no PAGESIZE
+defined in \texttt{limits.h}, it falls back to \texttt{sysconf(3)} syscall. In case of
+\texttt{sysconf(3)} fails, it returns negative number which will cause severe
+misbehavior of wallet.
+
+\lstinputlisting [style=customc, firstline=31, lastline=44]{Popchain/src/allocators.cpp}
+
+\end {document}

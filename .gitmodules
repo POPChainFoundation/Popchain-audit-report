@@ -1,0 +1,3 @@
+[submodule "Popchain"]
+	path = Popchain
+	url = git@github.com:POPChainFoundation/Popchain.git
